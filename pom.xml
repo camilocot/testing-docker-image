@@ -1,0 +1,107 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <artifactId>testing-docker-image</artifactId>
+  <groupId>camilocot</groupId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>docker</packaging>
+  <description>A simple IT verifying a basic use case</description>
+
+  <properties>
+    <base>nginx</base>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+        <version>0.27.2</version>
+        <extensions>true</extensions>
+        <configuration>
+          <showLogs>true</showLogs>
+          <verbose>true</verbose>
+          <images>
+            <image>
+              <name>camilocot/testing-docker-image</name>
+              <alias>dockerfile</alias>
+              <build>
+                <tags>
+                  <tag>latest</tag>
+                  <tag>${project.version}</tag>
+                </tags>
+                <dockerFileDir>${project.basedir}/src/main/docker</dockerFileDir>
+                <compression>gzip</compression>
+              </build>
+              <run>
+                <wait>
+                  <http>
+                    <url>http://localhost:${host.port}</url>
+                  </http>
+                  <time>10000</time>
+                </wait>
+                <ports>
+                  <port>+container.ip.property:host.port:80</port>
+                </ports>
+                <env>
+                  <TEST_ENV>-Xmx32m</TEST_ENV>
+                </env>
+                <extraHosts>internal-gat2:127.0.0.1</extraHosts>
+                <links>
+                  <link>mock-server:internal-gat</link>
+                </links>
+                <volumes>
+                  <bind>
+                    <volume>${project.basedir}/src/main/docker/sample-files:/var/www/htdocs</volume>
+                  </bind>
+                </volumes>
+              </run>
+            </image>
+            <image>
+              <alias>mock-server</alias>
+              <name>jordimartin/mmock:latest</name>
+              <run>
+                <cmd>-server-port 4200</cmd>
+                <volumes>
+                  <bind>
+                    <volume>${project.basedir}/src/main/docker/execution_path:/config</volume>
+                  </bind>
+                </volumes>
+              </run>
+            </image>
+            <image>
+              <alias>bats</alias>
+              <name>camilocot/bats:latest</name>
+              <build>
+                <tags>
+                  <tag>latest</tag>
+                </tags>
+                <dockerFileDir>${project.basedir}/src/main/docker-bats</dockerFileDir>
+                <compression>gzip</compression>
+              </build>
+              <run>
+                <wait>
+                  <exit>0</exit>
+                  <time>10000</time>
+                </wait>
+                <links>
+                  <link>dockerfile</link>
+                </links>
+                <cmd>/code/test</cmd>
+                <volumes>
+                  <bind>
+                    <volume>${project.basedir}/src/main/docker-bats/test:/code/test</volume>
+                    <volume>${project.basedir}/src/main/docker:/docker-image</volume>
+                  </bind>
+                </volumes>
+              </run>
+            </image>
+          </images>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

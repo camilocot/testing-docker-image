@@ -1,0 +1,6 @@
+---
+request:
+  method: "GET|HEAD"
+  path: "/*"
+response:
+  statusCode: 200
