@@ -4,3 +4,7 @@ request:
   path: "/*"
 response:
   statusCode: 200
+  headers:
+    Content-Type:
+    - application/text
+  body: 'OK'

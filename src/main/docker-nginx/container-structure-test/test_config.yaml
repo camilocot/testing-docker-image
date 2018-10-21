@@ -1,0 +1,7 @@
+schemaVersion: "2.0.0"
+
+fileContentTests:
+- name: 'Nginx Config Access Logs'
+  path: '/etc/nginx/nginx.conf'
+  expectedContents: ['.*  access_log   logs/access.log  main;.*']
+

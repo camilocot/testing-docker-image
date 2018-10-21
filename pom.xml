@@ -10,8 +10,15 @@
   <description>A simple IT verifying a basic use case</description>
 
   <properties>
-    <base>nginx</base>
+    <docker.image.from>nginx</docker.image.from>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <docker-maven-plugin.version>0.27.2</docker-maven-plugin.version>
+    <docker.verbose>true</docker.verbose>
+    <docker.startParallel>true</docker.startParallel>
+    <docker.files.nginx.dir>${project.basedir}/src/main/docker-nginx</docker.files.nginx.dir>
+    <docker.files.bats.dir>${project.basedir}/src/main/docker-bats</docker.files.bats.dir>
+    <docker.nginx.image.alias>nginx</docker.nginx.image.alias>
+    <docker.logStdout>false</docker.logStdout>
   </properties>
 
   <build>
@@ -19,21 +26,19 @@
       <plugin>
         <groupId>io.fabric8</groupId>
         <artifactId>docker-maven-plugin</artifactId>
-        <version>0.27.2</version>
+        <version>${docker-maven-plugin.version}</version>
         <extensions>true</extensions>
         <configuration>
-          <showLogs>true</showLogs>
-          <verbose>true</verbose>
           <images>
             <image>
-              <name>camilocot/testing-docker-image</name>
-              <alias>dockerfile</alias>
+              <name>camilocot/nginx</name>
+              <alias>${docker.nginx.image.alias}</alias>
               <build>
                 <tags>
                   <tag>latest</tag>
                   <tag>${project.version}</tag>
                 </tags>
-                <dockerFileDir>${project.basedir}/src/main/docker</dockerFileDir>
+                <dockerFileDir>${docker.files.nginx.dir}</dockerFileDir>
                 <compression>gzip</compression>
               </build>
               <run>
@@ -46,16 +51,12 @@
                 <ports>
                   <port>+container.ip.property:host.port:80</port>
                 </ports>
-                <env>
-                  <TEST_ENV>-Xmx32m</TEST_ENV>
-                </env>
-                <extraHosts>internal-gat2:127.0.0.1</extraHosts>
                 <links>
                   <link>mock-server:internal-gat</link>
                 </links>
                 <volumes>
                   <bind>
-                    <volume>${project.basedir}/src/main/docker/sample-files:/var/www/htdocs</volume>
+                    <volume>${docker.files.nginx.dir}/sample-files:/var/www/htdocs</volume>
                   </bind>
                 </volumes>
               </run>
@@ -67,7 +68,7 @@
                 <cmd>-server-port 4200</cmd>
                 <volumes>
                   <bind>
-                    <volume>${project.basedir}/src/main/docker/execution_path:/config</volume>
+                    <volume>${docker.files.nginx.dir}/execution_path:/config</volume>
                   </bind>
                 </volumes>
               </run>
@@ -79,22 +80,51 @@
                 <tags>
                   <tag>latest</tag>
                 </tags>
-                <dockerFileDir>${project.basedir}/src/main/docker-bats</dockerFileDir>
+                <dockerFileDir>${docker.files.bats.dir}</dockerFileDir>
                 <compression>gzip</compression>
               </build>
               <run>
                 <wait>
                   <exit>0</exit>
-                  <time>10000</time>
                 </wait>
                 <links>
-                  <link>dockerfile</link>
+                  <link>${docker.nginx.image.alias}</link>
                 </links>
-                <cmd>/code/test</cmd>
+                <cmd>
+                  <shell>/test</shell>
+                  </cmd>
                 <volumes>
                   <bind>
-                    <volume>${project.basedir}/src/main/docker-bats/test:/code/test</volume>
-                    <volume>${project.basedir}/src/main/docker:/docker-image</volume>
+                    <volume>${docker.files.bats.dir}/test:/test</volume>
+                  </bind>
+                </volumes>
+                <env>
+                  <NGINX_HOST>${docker.nginx.image.alias}</NGINX_HOST>
+                </env>
+                <log>
+                  <date>default</date>
+                  <file>${project.build.directory}/test-results/bats/results.txt</file>
+                </log>
+              </run>
+            </image>
+            <image>
+              <alias>container-structure-test</alias>
+              <name>gcr.io/gcp-runtimes/container-structure-test</name>
+              <run>
+                <wait>
+                  <exit>0</exit>
+                </wait>
+                <privileged>true</privileged>
+                <cmd>
+                  <shell>test --image camilocot/nginx:${project.version} --config /test/test_config.yaml</shell></cmd>
+                <log>
+                  <date>default</date>
+                  <file>${project.build.directory}/test-results/container-structure-test/results.txt</file>
+                </log>
+                <volumes>
+                  <bind>
+                    <volume>${docker.files.nginx.dir}/container-structure-test:/test</volume>
+                    <volume>/var/run/docker.sock:/var/run/docker.sock</volume>
                   </bind>
                 </volumes>
               </run>
